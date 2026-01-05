@@ -1,0 +1,162 @@
+@import 'devextreme/dist/css/dx.light.css';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* DevExpress DataGrid styling overrides */
+.dx-datagrid {
+  border: 1px solid #e5e7eb !important;
+  border-radius: 0.5rem !important;
+  overflow: hidden !important;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+    sans-serif !important;
+}
+
+.dx-datagrid-headers {
+  background-color: #f9fafb !important;
+  font-weight: 600 !important;
+  border-bottom: 1px solid #e5e7eb !important;
+}
+
+.dx-datagrid-headers .dx-header-filter {
+  color: #6b7280 !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+  display: inline-block !important;
+  width: 18px !important;
+  height: 18px !important;
+  margin-left: 4px !important;
+  cursor: pointer !important;
+}
+
+.dx-datagrid-headers .dx-header-filter:hover {
+  color: #09B6DE !important;
+}
+
+.dx-datagrid-headers .dx-header-filter:after {
+  content: "⋮" !important;
+  font-size: 14px !important;
+  line-height: 1 !important;
+  display: block !important;
+}
+
+.dx-header-filter-menu {
+  z-index: 10000 !important;
+}
+
+.dx-datagrid-rowsview .dx-row {
+  border-bottom: 1px solid #e5e7eb !important;
+}
+
+.dx-datagrid-rowsview .dx-row-alt {
+  background-color: #f9fafb !important;
+}
+
+.dx-datagrid-rowsview .dx-row:hover {
+  background-color: #f3f4f6 !important;
+}
+
+.dx-datagrid-pager {
+  border-top: 1px solid #e5e7eb !important;
+  background-color: white !important;
+}
+
+.dx-datagrid-search-panel {
+  margin: 8px !important;
+}
+
+.dx-datagrid .dx-datagrid-headers .dx-datagrid-table .dx-row > td {
+  padding: 12px 8px !important;
+}
+
+.dx-datagrid .dx-datagrid-rowsview .dx-datagrid-table .dx-row > td {
+  padding: 12px 8px !important;
+}
+
+/* Ensure cell content (badges) are not overridden by DevExpress */
+.dx-datagrid .dx-datagrid-rowsview .dx-datagrid-table .dx-row > td > span {
+  display: inline-block !important;
+  background-color: inherit !important;
+  color: inherit !important;
+}
+
+/* Header filter icon styling */
+.dx-header-filter {
+  opacity: 1 !important;
+  visibility: visible !important;
+}
+
+/* Ensure header filter icons are visible */
+.dx-datagrid-headers .dx-header-filter {
+  width: 20px !important;
+  height: 20px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  margin-left: 6px !important;
+  cursor: pointer !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+}
+
+.dx-header-filter::before {
+  content: "⋮" !important;
+  font-size: 18px !important;
+  line-height: 1 !important;
+  color: #6b7280 !important;
+  display: block !important;
+}
+
+.dx-header-filter:hover::before {
+  color: #09B6DE !important;
+}
+
+/* Ensure DataGrid has proper base styling */
+.dx-datagrid {
+  background: white !important;
+  font-size: 14px !important;
+}
+
+.dx-datagrid-headers {
+  background: #f9fafb !important;
+  border-bottom: 2px solid #e5e7eb !important;
+}
+
+.dx-datagrid-headers .dx-datagrid-text-content {
+  font-weight: 600 !important;
+  color: #111827 !important;
+}
+
+/* Force Tailwind to include custom colors */
+@layer utilities {
+  .bg-bharatpe-blue { background-color: #09B6DE; }
+  .bg-bharatpe-red { background-color: #FA6C61; }
+  .bg-bharatpe-green { background-color: #007C77; }
+  .bg-bharatpe-blue-dark { background-color: #07A0C0; }
+  .bg-bharatpe-blue-light { background-color: #E6F7FB; }
+  .bg-bharatpe-red-light { background-color: #FEF2F2; }
+  .bg-bharatpe-green-light { background-color: #E6F7F6; }
+  .text-bharatpe-blue { color: #09B6DE; }
+  .text-bharatpe-red { color: #FA6C61; }
+  .text-bharatpe-green { color: #007C77; }
+  .text-bharatpe-blue-dark { color: #07A0C0; }
+  .border-bharatpe-blue { border-color: #09B6DE; }
+  .border-bharatpe-red { border-color: #FA6C61; }
+  .hover\:bg-bharatpe-blue-light:hover { background-color: #E6F7FB; }
+  .hover\:text-bharatpe-blue:hover { color: #09B6DE; }
+  .hover\:bg-bharatpe-blue-dark:hover { background-color: #07A0C0; }
+  .focus\:ring-bharatpe-blue:focus { --tw-ring-color: #09B6DE; }
+  .focus\:border-bharatpe-blue:focus { border-color: #09B6DE; }
+}
+
