@@ -1,18 +1,48 @@
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
-import { HourlyMetricData } from '../../lib/types'
+import { HourlyAllMetricsData } from '../../lib/types'
 
-interface HourlyFunnelChartProps {
-  data: HourlyMetricData[]
+interface HourlyAllMetricsChartProps {
+  data: HourlyAllMetricsData[]
+  selectedMetrics: string[]
   onAnomalyClick?: (hour: number) => void
 }
 
-export function HourlyFunnelChart({ data, onAnomalyClick }: HourlyFunnelChartProps) {
-  const chartData = data.map(item => ({
-    hour: item.hour,
-    value: item.day0, // Single date value
-    isAnomaly: item.isAnomaly,
-    delta: item.deltaDay7 // Hour-to-hour change
-  }))
+const metricColors: Record<string, string> = {
+  applications_created: '#09B6DE',
+  applications_submitted: '#FA6C61',
+  applications_pending: '#F59E0B',
+  applications_approved: '#10B981',
+  applications_nached: '#8B5CF6',
+  autopay_done_applications: '#EC4899'
+}
+
+const metricLabels: Record<string, string> = {
+  applications_created: 'Created',
+  applications_submitted: 'Submitted',
+  applications_pending: 'Pending',
+  applications_approved: 'Approved',
+  applications_nached: 'NACHed',
+  autopay_done_applications: 'Autopay Done'
+}
+
+export function HourlyAllMetricsChart({ 
+  data, 
+  selectedMetrics,
+  onAnomalyClick 
+}: HourlyAllMetricsChartProps) {
+  const chartData = data.map(item => {
+    const chartItem: any = {
+      hour: item.hour,
+      hourDisplay: `${item.hour}:00`,
+      isAnomaly: item.isAnomaly
+    }
+    
+    selectedMetrics.forEach(metric => {
+      chartItem[metric] = item[metric as keyof HourlyAllMetricsData] as number
+    })
+    
+    return chartItem
+  })
 
   const CustomDot = (props: any) => {
     const { cx, cy, payload } = props
@@ -35,15 +65,12 @@ export function HourlyFunnelChart({ data, onAnomalyClick }: HourlyFunnelChartPro
           <p className="font-semibold mb-2">Hour {label}:00</p>
           {payload.map((entry: any, index: number) => (
             <p key={index} style={{ color: entry.color }} className="text-sm">
-              {entry.name}: {entry.value}
+              {entry.name}: {entry.value?.toLocaleString()}
             </p>
           ))}
           {dataPoint?.isAnomaly && (
             <div className="mt-2 pt-2 border-t border-gray-200">
               <p className="text-xs font-semibold text-red-600">⚠️ Anomaly Detected</p>
-              {dataPoint.delta !== null && (
-                <p className="text-xs text-gray-600">Change from previous hour: {dataPoint.delta.toFixed(2)}%</p>
-              )}
             </div>
           )}
         </div>
@@ -53,7 +80,7 @@ export function HourlyFunnelChart({ data, onAnomalyClick }: HourlyFunnelChartPro
   }
 
   return (
-    <ResponsiveContainer width="100%" height={350}>
+    <ResponsiveContainer width="100%" height={450}>
       <LineChart 
         data={chartData} 
         margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
@@ -75,14 +102,17 @@ export function HourlyFunnelChart({ data, onAnomalyClick }: HourlyFunnelChartPro
         <YAxis label={{ value: 'Count', angle: -90, position: 'insideLeft' }} />
         <Tooltip content={<CustomTooltip />} />
         <Legend />
-        <Line 
-          type="monotone" 
-          dataKey="value" 
-          stroke="#09B6DE" 
-          strokeWidth={2}
-          dot={<CustomDot />}
-          name="Applications (23-12-2025)"
-        />
+        {selectedMetrics.map(metric => (
+          <Line
+            key={metric}
+            type="monotone"
+            dataKey={metric}
+            stroke={metricColors[metric] || '#666'}
+            strokeWidth={2}
+            dot={<CustomDot />}
+            name={metricLabels[metric] || metric}
+          />
+        ))}
       </LineChart>
     </ResponsiveContainer>
   )

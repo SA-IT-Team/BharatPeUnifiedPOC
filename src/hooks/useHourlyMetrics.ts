@@ -1,22 +1,18 @@
 import { useState, useEffect } from 'react'
 import { supabaseApi } from '../lib/supabaseApi'
-import { AppHourlyMetric, HourlyMetricData, HourlyAnomaly, HourlyMetricField } from '../lib/types'
-import { computeHourlyAnomalies } from '../lib/utils'
+import { AppHourlyMetric, HourlyAllMetricsData } from '../lib/types'
+import { computeAllHourlyMetrics } from '../lib/utils'
 
 interface UseHourlyMetricsResult {
-  data: HourlyMetricData[]
-  anomalies: HourlyAnomaly[]
+  data: HourlyAllMetricsData[]
   loading: boolean
   error: Error | null
 }
 
 export function useHourlyMetrics(
-  selectedDate: string,
-  selectedMetric: HourlyMetricField,
-  threshold: number = 0.30
+  selectedDate: string
 ): UseHourlyMetricsResult {
-  const [data, setData] = useState<HourlyMetricData[]>([])
-  const [anomalies, setAnomalies] = useState<HourlyAnomaly[]>([])
+  const [data, setData] = useState<HourlyAllMetricsData[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<Error | null>(null)
 
@@ -26,25 +22,22 @@ export function useHourlyMetrics(
         setLoading(true)
         setError(null)
 
-        // Fetch all cohorts for the selected date
-        const metrics = await supabaseApi.fetchHourlyMetrics(selectedDate, ['DAY-0', 'DAY-1', 'DAY-7'])
+        // Fetch selected date
+        const metrics = await supabaseApi.fetchHourlyMetrics(selectedDate)
 
         if (!metrics || metrics.length === 0) {
           setData([])
-          setAnomalies([])
           setLoading(false)
           return
         }
 
         const typedMetrics = metrics as AppHourlyMetric[]
-        const result = computeHourlyAnomalies(typedMetrics, selectedMetric, threshold)
+        const result = computeAllHourlyMetrics(typedMetrics)
         
-        setData(result.data)
-        setAnomalies(result.anomalies)
+        setData(result)
       } catch (err) {
         setError(err instanceof Error ? err : new Error('Failed to fetch hourly metrics'))
         setData([])
-        setAnomalies([])
       } finally {
         setLoading(false)
       }
@@ -53,8 +46,8 @@ export function useHourlyMetrics(
     if (selectedDate) {
       fetchMetrics()
     }
-  }, [selectedDate, selectedMetric, threshold])
+  }, [selectedDate])
 
-  return { data, anomalies, loading, error }
+  return { data, loading, error }
 }
 

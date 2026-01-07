@@ -22,13 +22,10 @@ export function useDailyMetrics(days: number = 30): UseDailyMetricsResult {
         setLoading(true)
         setError(null)
 
-        // Calculate date range
-        const endDate = new Date()
-        const startDate = new Date()
-        startDate.setDate(startDate.getDate() - days)
-
-        const startDateStr = startDate.toISOString().split('T')[0]
-        const endDateStr = endDate.toISOString().split('T')[0]
+        // Calculate date range - for production POC, use fixed range: 01-12-2025 to 23-12-2025
+        // This represents the past 22 days from present day (23-12-2025)
+        const startDateStr = '2025-12-01'
+        const endDateStr = '2025-12-23'
 
         const metrics = await supabaseApi.fetchDailyMetrics(startDateStr, endDateStr)
 
@@ -41,11 +38,23 @@ export function useDailyMetrics(days: number = 30): UseDailyMetricsResult {
 
         const typedMetrics = metrics as DayByDayAmountMetric[]
         
-        // Transform to DailyMetricData
+        // Transform to DailyMetricData with all collection funnel metrics
         const transformedData: DailyMetricData[] = typedMetrics.map((metric, index) => {
-          const disbursed = parseMetric(metric.disbursed)
-          const approved = parseMetric(metric.approved)
+          // Parse all collection metrics
+          const eligible = parseMetric(metric.eligible)
+          const started = parseMetric(metric.started)
+          const shop_details_page = parseMetric(metric.shop_details_page)
+          const shop_photo = parseMetric(metric.shop_photo)
+          const kyc_initiated = parseMetric(metric.kyc_initiated)
+          const kyc_completed = parseMetric(metric.kyc_completed)
+          const add_detials_submitted = parseMetric(metric.add_detials_submitted)
+          const ref_page_submitted = parseMetric(metric.ref_page_submitted)
           const submitted = parseMetric(metric.submitted)
+          const nach_initiated = parseMetric(metric.nach_initiated)
+          const nach_done = parseMetric(metric.nach_done)
+          const processed = parseMetric(metric.processed)
+          const approved = parseMetric(metric.approved)
+          const disbursed = parseMetric(metric.disbursed)
           
           const prevDisbursed = index > 0 
             ? parseMetric(typedMetrics[index - 1].disbursed)
@@ -57,9 +66,20 @@ export function useDailyMetrics(days: number = 30): UseDailyMetricsResult {
           
           return {
             dt: metric.dt,
-            disbursed,
-            approved,
+            eligible,
+            started,
+            shop_details_page,
+            shop_photo,
+            kyc_initiated,
+            kyc_completed,
+            add_detials_submitted,
+            ref_page_submitted,
             submitted,
+            nach_initiated,
+            nach_done,
+            processed,
+            approved,
+            disbursed,
             prevDisbursed,
             deltaDisbursed,
             isAnomaly: deltaDisbursed !== null && deltaDisbursed < -30

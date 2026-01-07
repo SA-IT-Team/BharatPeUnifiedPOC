@@ -46,3 +46,5 @@ export function Tabs({ tabs, defaultTab }: TabsProps) {
 }
 
 
+
+

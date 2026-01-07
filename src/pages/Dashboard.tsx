@@ -4,16 +4,24 @@ import { useHourlyMetrics } from '../hooks/useHourlyMetrics'
 import { useDailyMetrics } from '../hooks/useDailyMetrics'
 import { useAlerts, useCorrelatedAlerts } from '../hooks/useAlerts'
 import { HourlyFunnelChart } from '../components/charts/HourlyFunnelChart'
-import { DailyDisbursedChart } from '../components/charts/DailyDisbursedChart'
+import { HourlyAllMetricsChart } from '../components/charts/HourlyAllMetricsChart'
+import { DailyMetricsChart } from '../components/charts/DailyMetricsChart'
 import { HourlyMetricsDataGrid } from '../components/tables/HourlyMetricsDataGrid'
+import { DailyMetricsDataGrid } from '../components/tables/DailyMetricsDataGrid'
 import { AlertsDataGrid } from '../components/tables/AlertsDataGrid'
 import { MetricCard } from '../components/cards/MetricCard'
 import { KPICard } from '../components/cards/KPICard'
 import { Tabs } from '../components/ui/Tabs'
 import { FilterModal } from '../components/ui/FilterModal'
+import { LoadingSkeleton } from '../components/ui/LoadingSkeleton'
+import { EmptyState } from '../components/ui/EmptyState'
+import { ErrorDisplay } from '../components/ui/ErrorDisplay'
+import { AlertCorrelationPanel } from '../components/ui/AlertCorrelationPanel'
+import { Accordion } from '../components/ui/Accordion'
 import { HourlyMetricField } from '../lib/types'
 import { supabaseApi } from '../lib/supabaseApi'
 import { formatPercent } from '../lib/utils'
+import { validateDate, validateTimeWindow } from '../lib/validation'
 
 export function Dashboard() {
   const [selectedDate, setSelectedDate] = useState<string>('')
@@ -22,6 +30,7 @@ export function Dashboard() {
   const [windowAfter, setWindowAfter] = useState(15)
   const [selectedAnomalyHour, setSelectedAnomalyHour] = useState<number | null>(null)
   const [selectedAnomalyTimestamp, setSelectedAnomalyTimestamp] = useState<Date | null>(null)
+  const [selectedDailyAnomalyDate, setSelectedDailyAnomalyDate] = useState<string | null>(null)
   
   // Alert filters
   const [alertSources, setAlertSources] = useState<string[]>([])
@@ -29,32 +38,29 @@ export function Dashboard() {
   const [alertSeverity, setAlertSeverity] = useState<string[]>([])
   const [alertSearchText, setAlertSearchText] = useState('')
   
-  // Daily chart toggles
-  const [showApproved, setShowApproved] = useState(false)
-  const [showSubmitted, setShowSubmitted] = useState(false)
+  // Daily metrics toggles
+  const [selectedDailyMetrics, setSelectedDailyMetrics] = useState<string[]>([
+    'disbursed', 'approved', 'submitted', 'kyc_completed', 'nach_done'
+  ])
+  
+  // Hourly metrics toggles
+  const [selectedHourlyMetrics, setSelectedHourlyMetrics] = useState<string[]>([
+    'applications_created', 'applications_submitted', 'applications_pending', 
+    'applications_approved', 'applications_nached', 'autopay_done_applications'
+  ])
 
   // Filter modal state
   const [isFilterModalOpen, setIsFilterModalOpen] = useState(false)
 
-  // Fetch latest DAY-0 date on mount
+  // Set present date as 23-12-2025
   useEffect(() => {
-    async function fetchLatestDate() {
-      const result = await supabaseApi.fetchLatestDate('DAY-0')
-
-      if (result && typeof result === 'object' && 'dt' in result && result.dt) {
-        setSelectedDate(String(result.dt))
-      } else {
-        // Fallback to today
-        setSelectedDate(new Date().toISOString().split('T')[0])
-      }
-    }
-    fetchLatestDate()
+    setSelectedDate('2025-12-23')
   }, [])
 
-  const { data: hourlyData, anomalies: hourlyAnomalies, loading: hourlyLoading } = 
-    useHourlyMetrics(selectedDate, selectedMetric, 0.30)
+  const { data: hourlyData, loading: hourlyLoading, error: hourlyError } = 
+    useHourlyMetrics(selectedDate)
 
-  const { data: dailyData, anomalies: dailyAnomalies, loading: dailyLoading } = 
+  const { data: dailyData, anomalies: dailyAnomalies, loading: dailyLoading, error: dailyError } = 
     useDailyMetrics(30)
 
   // Determine which alerts to show - memoize to prevent infinite re-renders
@@ -67,7 +73,14 @@ export function Dashboard() {
 
   const { alerts: timeRangeAlerts, loading: alertsLoading } = useAlerts(alertFilters)
   const { alerts: correlatedAlerts, loading: correlatedAlertsLoading } = 
-    useCorrelatedAlerts(selectedAnomalyTimestamp, windowBefore, windowAfter, alertFilters)
+    useCorrelatedAlerts(
+      selectedAnomalyTimestamp, 
+      windowBefore, 
+      windowAfter, 
+      alertFilters,
+      selectedDailyAnomalyDate ? 'collections' : 'applications', // domain based on anomaly type
+      selectedDailyAnomalyDate ? 'disbursed' : 'applications_created' // metric based on anomaly type
+    )
 
   const displayAlerts = selectedAnomalyTimestamp ? correlatedAlerts : timeRangeAlerts
   const displayAlertsLoading = selectedAnomalyTimestamp ? correlatedAlertsLoading : alertsLoading
@@ -81,33 +94,71 @@ export function Dashboard() {
     }).length
   }, [displayAlerts, oneHourAgo])
 
-  const servicesUp = useMemo(() => {
-    // Calculate based on alerts - services with no critical alerts in last hour
-    const criticalAlerts = displayAlerts.filter(alert => {
-      const alertTime = new Date(alert.triggered_at)
-      return alert.priority === 'p1' && alertTime >= oneHourAgo
+  // Calculate unique services/applications from alerts
+  const uniqueServices = useMemo(() => {
+    const services = new Set<string>()
+    displayAlerts.forEach(alert => {
+      if (alert.application) services.add(alert.application)
+      if (alert.subsystem) services.add(alert.subsystem)
     })
-    // Mock calculation - in real app, this would come from service health data
-    return Math.max(0, 10 - criticalAlerts.length)
+    return Array.from(services)
+  }, [displayAlerts])
+
+  const servicesWithCriticalAlerts = useMemo(() => {
+    const criticalServices = new Set<string>()
+    displayAlerts.forEach(alert => {
+      const alertTime = new Date(alert.triggered_at)
+      if (alert.priority === 'p1' && alertTime >= oneHourAgo) {
+        if (alert.application) criticalServices.add(alert.application)
+        if (alert.subsystem) criticalServices.add(alert.subsystem)
+      }
+    })
+    return criticalServices.size
   }, [displayAlerts, oneHourAgo])
 
-  const servicesDown = 10 - servicesUp
-  const totalAnomalies = hourlyAnomalies.length + dailyAnomalies.length
+  const servicesUp = Math.max(0, uniqueServices.length - servicesWithCriticalAlerts)
+  const servicesDown = servicesWithCriticalAlerts
+  const totalAnomalies = dailyAnomalies.length
 
   const handleAnomalyHourClick = (hour: number) => {
     setSelectedAnomalyHour(hour)
-    // Find the anomaly timestamp for this hour
-    const anomaly = hourlyAnomalies.find(a => a.hour === hour)
-    if (anomaly) {
-      setSelectedAnomalyTimestamp(anomaly.timestamp)
-    }
+    // Create timestamp for the selected hour on the selected date
+    const anomalyDate = new Date(selectedDate + `T${hour.toString().padStart(2, '0')}:00:00+05:30`)
+    setSelectedAnomalyTimestamp(anomalyDate)
   }
+
+  const selectedAnomalyData = useMemo(() => {
+    if (selectedAnomalyTimestamp && selectedAnomalyHour !== null) {
+      const hourlyItem = hourlyData.find(a => a.hour === selectedAnomalyHour)
+      if (hourlyItem && hourlyItem.isAnomaly) {
+        return {
+          type: 'hourly' as const,
+          time: `${selectedAnomalyHour}:00`,
+          metric: 'applications_created',
+          delta: null
+        }
+      }
+    }
+    if (selectedDailyAnomalyDate) {
+      const anomaly = dailyAnomalies.find(a => a.dt === selectedDailyAnomalyDate)
+      if (anomaly) {
+        return {
+          type: 'daily' as const,
+          time: new Date(anomaly.dt).toLocaleDateString('en-IN'),
+          metric: anomaly.metric,
+          delta: anomaly.delta
+        }
+      }
+    }
+    return null
+  }, [selectedAnomalyTimestamp, selectedAnomalyHour, hourlyData, selectedDailyAnomalyDate, dailyAnomalies])
 
   return (
     <div className="max-w-7xl mx-auto">
       {/* Header */}
       <div className="mb-6">
-        <h1 className="text-3xl font-bold text-gray-900">Monitoring Dashboard</h1>
+        <h1 className="text-3xl font-bold text-gray-900">BharatPe Loan Service Monitoring</h1>
+        <p className="text-sm text-gray-600 mt-1">Applications & Collections Metrics Dashboard</p>
       </div>
 
       {/* KPI Cards */}
@@ -122,14 +173,14 @@ export function Dashboard() {
         <KPICard
           title="Services Up"
           value={servicesUp}
-          subtitle="of 10 total"
+          subtitle={`of ${uniqueServices.length} total`}
           color="green"
           icon={<Server size={24} />}
         />
         <KPICard
           title="Services Down"
           value={servicesDown}
-          subtitle="Requires attention"
+          subtitle="With critical alerts"
           color="red"
           icon={<Activity size={24} />}
         />
@@ -143,15 +194,20 @@ export function Dashboard() {
       </div>
 
       {/* Anomaly Selection Banner */}
-      {selectedAnomalyHour !== null && (
+      {(selectedAnomalyHour !== null || selectedDailyAnomalyDate) && (
         <div className="mb-6 p-3 bg-bharatpe-blue-light border border-bharatpe-blue rounded-lg">
           <span className="text-sm text-bharatpe-blue-dark">
-            Showing alerts correlated with anomaly at hour {selectedAnomalyHour}:00
+            {selectedAnomalyHour !== null 
+              ? `Showing alerts correlated with anomaly at hour ${selectedAnomalyHour}:00`
+              : selectedDailyAnomalyDate 
+                ? `Showing alerts correlated with anomaly on ${new Date(selectedDailyAnomalyDate).toLocaleDateString('en-IN')}`
+                : ''}
           </span>
           <button
             onClick={() => {
               setSelectedAnomalyHour(null)
               setSelectedAnomalyTimestamp(null)
+              setSelectedDailyAnomalyDate(null)
             }}
             className="ml-4 text-bharatpe-blue hover:text-bharatpe-blue-dark underline text-sm"
           >
@@ -166,16 +222,33 @@ export function Dashboard() {
         onClose={() => setIsFilterModalOpen(false)}
         selectedDate={selectedDate}
         onDateChange={(value) => {
-          setSelectedDate(value)
-          setSelectedAnomalyHour(null)
-          setSelectedAnomalyTimestamp(null)
+          const validation = validateDate(value)
+          if (validation.valid) {
+            setSelectedDate(value)
+            setSelectedAnomalyHour(null)
+            setSelectedAnomalyTimestamp(null)
+            setSelectedDailyAnomalyDate(null)
+          } else {
+            // Show error but don't update date
+            console.warn('Invalid date:', validation.error)
+          }
         }}
         selectedMetric={selectedMetric}
         onMetricChange={setSelectedMetric}
         windowBefore={windowBefore}
-        onWindowBeforeChange={setWindowBefore}
+        onWindowBeforeChange={(value) => {
+          const validation = validateTimeWindow(value, windowAfter)
+          if (validation.valid) {
+            setWindowBefore(value)
+          }
+        }}
         windowAfter={windowAfter}
-        onWindowAfterChange={setWindowAfter}
+        onWindowAfterChange={(value) => {
+          const validation = validateTimeWindow(windowBefore, value)
+          if (validation.valid) {
+            setWindowAfter(value)
+          }
+        }}
         alertSources={alertSources}
         onAlertSourcesChange={setAlertSources}
         alertPriority={alertPriority}
@@ -203,81 +276,148 @@ export function Dashboard() {
         <Tabs
           tabs={[
             {
-              id: 'hourly',
-              label: 'Hourly Metrics',
+              id: 'daily',
+              label: 'Day-by-Day Metrics (01-12-2025 to 23-12-2025)',
               content: (
                 <>
-                  {hourlyLoading ? (
-                    <div className="text-center py-8 text-gray-500">Loading hourly metrics...</div>
-                  ) : hourlyData.length === 0 ? (
-                    <div className="text-center py-8 text-gray-500">No data available</div>
-                  ) : (
+                  {dailyError ? (
+                    <ErrorDisplay 
+                      error={dailyError} 
+                      onRetry={() => window.location.reload()}
+                      title="Failed to Load Day-by-Day Metrics"
+                    />
+                  ) : dailyLoading ? (
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                      <div className="lg:col-span-1">
-                        <HourlyFunnelChart data={hourlyData} />
+                      <LoadingSkeleton type="chart" />
+                      <LoadingSkeleton type="table" count={5} />
+                    </div>
+                  ) : dailyData.length === 0 ? (
+                    <EmptyState 
+                      type="no-data"
+                      message="No day-by-day metrics found for the selected date range (01-12-2025 to 23-12-2025)."
+                    />
+                  ) : (
+                    <>
+                      <div className="mb-4">
+                        <p className="text-sm text-gray-600 mb-3">Select metrics to display (with 7-day forecast):</p>
+                        <div className="flex flex-wrap gap-4">
+                          {['eligible', 'started', 'kyc_initiated', 'kyc_completed', 'nach_initiated', 'nach_done', 'processed', 'approved', 'submitted', 'disbursed'].map(metric => (
+                            <label key={metric} className="flex items-center">
+                              <input
+                                type="checkbox"
+                                checked={selectedDailyMetrics.includes(metric)}
+                                onChange={(e) => {
+                                  if (e.target.checked) {
+                                    setSelectedDailyMetrics([...selectedDailyMetrics, metric])
+                                  } else {
+                                    setSelectedDailyMetrics(selectedDailyMetrics.filter(m => m !== metric))
+                                  }
+                                }}
+                                className="mr-2"
+                              />
+                              <span className="text-sm text-gray-700 capitalize">{metric.replace(/_/g, ' ')}</span>
+                            </label>
+                          ))}
+                        </div>
                       </div>
-                      <div className="lg:col-span-1">
-                        <HourlyMetricsDataGrid 
-                          data={hourlyData} 
-                          onRowClick={handleAnomalyHourClick}
+                      <div className="mb-6">
+                        <Accordion title="Chart" defaultExpanded={true}>
+                          <DailyMetricsChart 
+                            data={dailyData} 
+                            selectedMetrics={selectedDailyMetrics}
+                            showForecast={true}
+                            onAnomalyClick={(date) => {
+                              setSelectedDailyAnomalyDate(date)
+                              const anomalyDate = new Date(date + 'T12:00:00+05:30')
+                              setSelectedAnomalyTimestamp(anomalyDate)
+                              setSelectedAnomalyHour(null)
+                            }}
+                          />
+                        </Accordion>
+                      </div>
+                      <div className="mt-6">
+                        <DailyMetricsDataGrid 
+                          data={dailyData}
+                          onRowClick={(date) => {
+                            setSelectedDailyAnomalyDate(date)
+                            const anomalyDate = new Date(date + 'T12:00:00+05:30')
+                            setSelectedAnomalyTimestamp(anomalyDate)
+                            setSelectedAnomalyHour(null)
+                          }}
                         />
                       </div>
-                    </div>
+                    </>
                   )}
                 </>
               )
             },
             {
-              id: 'daily',
-              label: 'Daily Trends',
+              id: 'hourly',
+              label: 'Application Metrics (Hourly) - 23-12-2025',
               content: (
                 <>
-                  <div className="mb-4 flex gap-4">
-                    <label className="flex items-center">
-                      <input
-                        type="checkbox"
-                        checked={showApproved}
-                        onChange={(e) => setShowApproved(e.target.checked)}
-                        className="mr-2"
-                      />
-                      <span className="text-sm text-gray-700">Show Approved</span>
-                    </label>
-                    <label className="flex items-center">
-                      <input
-                        type="checkbox"
-                        checked={showSubmitted}
-                        onChange={(e) => setShowSubmitted(e.target.checked)}
-                        className="mr-2"
-                      />
-                      <span className="text-sm text-gray-700">Show Submitted</span>
-                    </label>
-                  </div>
-                  {dailyLoading ? (
-                    <div className="text-center py-8 text-gray-500">Loading daily metrics...</div>
-                  ) : dailyData.length === 0 ? (
-                    <div className="text-center py-8 text-gray-500">No data available</div>
+                  {hourlyError ? (
+                    <ErrorDisplay 
+                      error={hourlyError} 
+                      onRetry={() => window.location.reload()}
+                      title="Failed to Load Hourly Application Metrics"
+                    />
+                  ) : hourlyLoading ? (
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                      <LoadingSkeleton type="chart" />
+                      <LoadingSkeleton type="table" count={5} />
+                    </div>
+                  ) : hourlyData.length === 0 ? (
+                    <EmptyState 
+                      type="no-data"
+                      message={`No hourly application metrics found for 23-12-2025.`}
+                    />
                   ) : (
                     <>
-                      <DailyDisbursedChart 
-                        data={dailyData} 
-                        showApproved={showApproved}
-                        showSubmitted={showSubmitted}
-                      />
-                      {dailyAnomalies.length > 0 && (
-                        <div className="mt-4">
-                          <h3 className="text-sm font-semibold text-gray-700 mb-2">Anomalies Detected:</h3>
-                          <div className="flex flex-wrap gap-2">
-                            {dailyAnomalies.map((anomaly, index) => (
-                              <span
-                                key={index}
-                                className="px-3 py-1 bg-bharatpe-red-light text-bharatpe-red rounded text-sm"
-                              >
-                                {new Date(anomaly.dt).toLocaleDateString('en-IN')} ({formatPercent(anomaly.delta)})
+                      <div className="mb-4">
+                        <p className="text-sm text-gray-600 mb-3">Select metrics to display:</p>
+                        <div className="flex flex-wrap gap-4">
+                          {['applications_created', 'applications_submitted', 'applications_pending', 'applications_approved', 'applications_nached', 'autopay_done_applications'].map(metric => (
+                            <label key={metric} className="flex items-center">
+                              <input
+                                type="checkbox"
+                                checked={selectedHourlyMetrics.includes(metric)}
+                                onChange={(e) => {
+                                  if (e.target.checked) {
+                                    setSelectedHourlyMetrics([...selectedHourlyMetrics, metric])
+                                  } else {
+                                    setSelectedHourlyMetrics(selectedHourlyMetrics.filter(m => m !== metric))
+                                  }
+                                }}
+                                className="mr-2"
+                              />
+                              <span className="text-sm text-gray-700 capitalize">
+                                {metric === 'applications_created' ? 'Created' :
+                                 metric === 'applications_submitted' ? 'Submitted' :
+                                 metric === 'applications_pending' ? 'Pending' :
+                                 metric === 'applications_approved' ? 'Approved' :
+                                 metric === 'applications_nached' ? 'NACHed' :
+                                 metric === 'autopay_done_applications' ? 'Autopay Done' : metric}
                               </span>
-                            ))}
-                          </div>
+                            </label>
+                          ))}
                         </div>
-                      )}
+                      </div>
+                      <div className="mb-6">
+                        <Accordion title="Chart" defaultExpanded={true}>
+                          <HourlyAllMetricsChart 
+                            data={hourlyData} 
+                            selectedMetrics={selectedHourlyMetrics}
+                            onAnomalyClick={handleAnomalyHourClick}
+                          />
+                        </Accordion>
+                      </div>
+                      <div className="mt-6">
+                        <HourlyMetricsDataGrid 
+                          data={hourlyData} 
+                          onRowClick={handleAnomalyHourClick}
+                        />
+                      </div>
                     </>
                   )}
                 </>
@@ -287,7 +427,37 @@ export function Dashboard() {
               id: 'alerts',
               label: 'Alerts Feed',
               content: (
-                <AlertsDataGrid alerts={displayAlerts} loading={displayAlertsLoading} />
+                <>
+                  {displayAlertsLoading ? (
+                    <LoadingSkeleton type="table" count={5} />
+                  ) : displayAlerts.length === 0 ? (
+                    <EmptyState 
+                      type="no-alerts"
+                      message={selectedAnomalyTimestamp 
+                        ? "No alerts found in the correlation window. Try adjusting the time window or filters."
+                        : "No alerts match your current filters. Try adjusting your search criteria or time range."}
+                      action={{
+                        label: 'Open Filters',
+                        onClick: () => setIsFilterModalOpen(true)
+                      }}
+                    />
+                  ) : (
+                    <>
+                      {selectedAnomalyData && (
+                        <AlertCorrelationPanel
+                          alerts={correlatedAlerts}
+                          anomalyType={selectedAnomalyData.type}
+                          anomalyTime={selectedAnomalyData.time}
+                          metric={selectedAnomalyData.metric}
+                          delta={selectedAnomalyData.delta}
+                        />
+                      )}
+                      <div className="mt-4">
+                        <AlertsDataGrid alerts={displayAlerts} loading={displayAlertsLoading} />
+                      </div>
+                    </>
+                  )}
+                </>
               )
             }
           ]}

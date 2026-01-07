@@ -42,6 +42,49 @@ const DetailTemplate = ({ data }: { data: CorrelatedAlert }) => {
           </div>
         </div>
       )}
+      
+      {data.alertMappings && data.alertMappings.length > 0 && (
+        <div className="mt-4 pt-4 border-t border-gray-200">
+          <div className="text-xs font-semibold text-gray-700 mb-2">Alert Metric Mapping:</div>
+          <div className="space-y-2">
+            {data.alertMappings.map((mapping, idx) => (
+              <div key={idx} className="bg-blue-50 p-3 rounded border border-blue-200">
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  <div>
+                    <span className="font-semibold text-gray-700">Domain:</span>
+                    <span className="ml-2 px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs font-medium">
+                      {mapping.domain}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="font-semibold text-gray-700">Affected Metric:</span>
+                    <span className="ml-2 text-gray-900">{mapping.metric}</span>
+                  </div>
+                  <div>
+                    <span className="font-semibold text-gray-700">Confidence:</span>
+                    <span className="ml-2 px-2 py-1 bg-green-100 text-green-800 rounded text-xs font-medium">
+                      {(parseFloat(mapping.confidence || '0') * 100).toFixed(0)}%
+                    </span>
+                  </div>
+                  <div>
+                    <span className="font-semibold text-gray-700">Match Rule:</span>
+                    <span className="ml-2 text-gray-900 text-xs">
+                      {mapping.match_field} {mapping.match_type} "{mapping.match_value}"
+                    </span>
+                  </div>
+                </div>
+                {mapping.notes && (
+                  <div className="mt-2 pt-2 border-t border-blue-200">
+                    <span className="font-semibold text-gray-700 text-xs">Notes:</span>
+                    <div className="text-xs text-gray-700 mt-1">{mapping.notes}</div>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+      
       <div className="grid grid-cols-2 gap-4 text-xs">
         {data.team && (
           <div>
@@ -61,6 +104,14 @@ const DetailTemplate = ({ data }: { data: CorrelatedAlert }) => {
         {data.severity && (
           <div>
             <span className="font-semibold text-gray-700">Severity:</span> {data.severity}
+          </div>
+        )}
+        {data.correlationScore && (
+          <div>
+            <span className="font-semibold text-gray-700">Correlation Score:</span>
+            <span className="ml-2 px-2 py-1 bg-purple-100 text-purple-800 rounded text-xs font-medium">
+              {(data.correlationScore * 100).toFixed(0)}%
+            </span>
           </div>
         )}
       </div>
@@ -136,6 +187,8 @@ export function AlertsDataGrid({ alerts, loading }: AlertsDataGridProps) {
           allowSorting={true}
           cellRender={(data: any) => {
             const source = data.value
+            if (!source) return <span>N/A</span>
+            
             const getSourceStyle = () => {
               if (source === 'coralogix') return { backgroundColor: '#E6F7FB', color: '#07A0C0' }
               if (source === 'cloudflare') return { backgroundColor: '#FFEDD5', color: '#9A3412' }
@@ -143,18 +196,20 @@ export function AlertsDataGrid({ alerts, loading }: AlertsDataGridProps) {
               if (source === 'slack') return { backgroundColor: '#F3E8FF', color: '#6B21A8' }
               return { backgroundColor: '#F3F4F6', color: '#1F2937' }
             }
+            const style = {
+              ...getSourceStyle(),
+              padding: '4px 8px',
+              borderRadius: '4px',
+              fontSize: '12px',
+              display: 'inline-block',
+              fontWeight: '500',
+              border: 'none',
+              outline: 'none'
+            }
             return (
-              <span 
-                style={{
-                  ...getSourceStyle(),
-                  padding: '4px 8px',
-                  borderRadius: '4px',
-                  fontSize: '12px',
-                  display: 'inline-block'
-                }}
-              >
+              <div style={style}>
                 {source}
-              </span>
+              </div>
             )
           }}
         />
@@ -165,21 +220,26 @@ export function AlertsDataGrid({ alerts, loading }: AlertsDataGridProps) {
           allowSorting={true}
           cellRender={(data: any) => {
             const priority = data.value
-            const isP1 = priority === 'p1'
+            if (!priority) return <span>N/A</span>
+            
+            const isP1 = priority.toLowerCase() === 'p1'
+            const style = {
+              backgroundColor: isP1 ? '#FEF2F2' : '#FEFCE8',
+              color: isP1 ? '#FA6C61' : '#CA8A04',
+              padding: '4px 8px',
+              borderRadius: '4px',
+              fontSize: '12px',
+              fontWeight: '600',
+              display: 'inline-block',
+              minWidth: '32px',
+              textAlign: 'center',
+              border: 'none',
+              outline: 'none'
+            }
             return (
-              <span 
-                style={{
-                  backgroundColor: isP1 ? '#FEF2F2' : '#FEFCE8',
-                  color: isP1 ? '#FA6C61' : '#CA8A04',
-                  padding: '4px 8px',
-                  borderRadius: '4px',
-                  fontSize: '12px',
-                  fontWeight: '600',
-                  display: 'inline-block'
-                }}
-              >
-                {priority?.toUpperCase() || ''}
-              </span>
+              <div style={style}>
+                {priority.toUpperCase()}
+              </div>
             )
           }}
         />
@@ -207,25 +267,33 @@ export function AlertsDataGrid({ alerts, loading }: AlertsDataGridProps) {
           width={100}
           allowSorting={true}
           cellRender={(data: any) => {
-            const statusCode = parseInt(data.value || '0')
+            const value = data.value
+            if (!value || value === 'N/A') {
+              return <span style={{ color: '#6b7280' }}>N/A</span>
+            }
+            
+            const statusCode = parseInt(value || '0')
             const getStatusStyle = () => {
               if (statusCode >= 500) return { backgroundColor: '#FEF2F2', color: '#FA6C61' }
               if (statusCode >= 400) return { backgroundColor: '#FEFCE8', color: '#CA8A04' }
               return { backgroundColor: '#E6F7F6', color: '#007C77' }
             }
+            const style = {
+              ...getStatusStyle(),
+              padding: '4px 8px',
+              borderRadius: '4px',
+              fontSize: '12px',
+              fontWeight: '500',
+              display: 'inline-block',
+              minWidth: '40px',
+              textAlign: 'center',
+              border: 'none',
+              outline: 'none'
+            }
             return (
-              <span 
-                style={{
-                  ...getStatusStyle(),
-                  padding: '4px 8px',
-                  borderRadius: '4px',
-                  fontSize: '12px',
-                  fontWeight: '500',
-                  display: 'inline-block'
-                }}
-              >
-                {data.value || 'N/A'}
-              </span>
+              <div style={style}>
+                {value}
+              </div>
             )
           }}
         />

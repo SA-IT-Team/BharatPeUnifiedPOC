@@ -99,26 +99,22 @@ async function fetchFromSupabase<T>(
 
 export const supabaseApi = {
   /**
-   * Fetch hourly metrics for a specific date and cohorts
+   * Fetch hourly metrics for a specific date (single date only)
    */
-  async fetchHourlyMetrics(
-    date: string,
-    cohorts: string[] = ['DAY-0', 'DAY-1', 'DAY-7']
-  ) {
+  async fetchHourlyMetrics(date: string) {
     return fetchFromSupabase('bharatpe_app_hourly_metrics', {
       select: '*',
       eq: { dt: date },
-      in: { cohort: cohorts }
+      order: { column: 'hour', ascending: true }
     })
   },
 
   /**
-   * Fetch latest date for a specific cohort
+   * Fetch latest date from hourly metrics table
    */
-  async fetchLatestDate(cohort: string = 'DAY-0') {
+  async fetchLatestDate() {
     const results = await fetchFromSupabase('bharatpe_app_hourly_metrics', {
       select: 'dt',
-      eq: { cohort },
       order: { column: 'dt', ascending: false },
       limit: 1
     })
@@ -158,6 +154,36 @@ export const supabaseApi = {
     }
 
     return fetchFromSupabase('bharatpe_alerts_events', params)
+  },
+
+  /**
+   * Fetch alerts near a specific timestamp (for anomaly correlation)
+   * Searches within a time window around the anomaly time
+   */
+  async fetchAlertsNearTime(
+    anomalyTime: Date, // IST
+    windowMinutes: number = 30 // Search ±30 minutes by default
+  ) {
+    const start = new Date(anomalyTime.getTime() - windowMinutes * 60 * 1000)
+    const end = new Date(anomalyTime.getTime() + windowMinutes * 60 * 1000)
+    
+    return this.fetchAlerts({ start, end })
+  },
+
+  /**
+   * Fetch alert metric mappings for domain-based correlation
+   */
+  async fetchAlertMetricMap(domain?: string) {
+    const params: QueryParams = {
+      select: '*',
+      eq: { is_active: 'true' }
+    }
+
+    if (domain) {
+      params.eq = { ...params.eq, domain }
+    }
+
+    return fetchFromSupabase('bharatpe_alerts_metric_map', params)
   }
 }
 

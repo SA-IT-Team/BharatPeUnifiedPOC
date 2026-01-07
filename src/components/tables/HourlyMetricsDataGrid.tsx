@@ -1,25 +1,24 @@
 import React, { useState, useMemo } from 'react'
-import DataGrid, { Column, Paging, FilterRow, HeaderFilter, SearchPanel } from 'devextreme-react/data-grid'
-import { HourlyMetricData } from '../../lib/types'
-import { formatPercent } from '../../lib/utils'
+import DataGrid, { Column, Paging, FilterRow, HeaderFilter, SearchPanel, Sorting } from 'devextreme-react/data-grid'
+import { HourlyAllMetricsData } from '../../lib/types'
 
 interface HourlyMetricsDataGridProps {
-  data: HourlyMetricData[]
+  data: HourlyAllMetricsData[]
   onRowClick?: (hour: number) => void
 }
 
 export function HourlyMetricsDataGrid({ data, onRowClick }: HourlyMetricsDataGridProps) {
   const gridData = useMemo(() => {
+    // Keep data in ascending order (0, 1, 2... 23)
     return data.map(item => ({
       hour: item.hour,
       hourDisplay: `${item.hour}:00`,
-      day0: item.day0,
-      day1: item.day1,
-      day7: item.day7,
-      deltaDay1: item.deltaDay1,
-      deltaDay7: item.deltaDay7,
-      deltaDay1Display: formatPercent(item.deltaDay1),
-      deltaDay7Display: formatPercent(item.deltaDay7),
+      applications_created: item.applications_created,
+      applications_submitted: item.applications_submitted,
+      applications_pending: item.applications_pending,
+      applications_approved: item.applications_approved,
+      applications_nached: item.applications_nached,
+      autopay_done_applications: item.autopay_done_applications,
       isAnomaly: item.isAnomaly
     }))
   }, [data])
@@ -37,14 +36,7 @@ export function HourlyMetricsDataGrid({ data, onRowClick }: HourlyMetricsDataGri
         borderLeft: '4px solid #FA6C61'
       }
     }
-    if (cellInfo.column?.dataField === 'deltaDay1Display' || cellInfo.column?.dataField === 'deltaDay7Display') {
-      const delta = cellInfo.column?.dataField === 'deltaDay1Display' 
-        ? cellInfo.data.deltaDay1 
-        : cellInfo.data.deltaDay7
-      if (delta !== null && delta < 0) {
-        return { color: '#FA6C61', fontWeight: 'bold' }
-      }
-    }
+    return {}
   }
 
   if (!data || data.length === 0) {
@@ -69,46 +61,59 @@ export function HourlyMetricsDataGrid({ data, onRowClick }: HourlyMetricsDataGri
         columnResizingMode="widget"
         headerFilter={{ allowSearch: true }}
       >
-      <Paging defaultPageSize={5} pageSizeSelector={[5, 10, 20]} />
-      <FilterRow visible={false} />
+      <Paging defaultPageSize={10} pageSizeSelector={[5, 10, 20, 30]} />
+      <FilterRow visible={true} />
       <HeaderFilter visible={true} allowSelectAll={true} />
       <SearchPanel visible={true} width={240} placeholder="Search..." />
+      <Sorting mode="single" />
       
       <Column 
         dataField="hourDisplay" 
         caption="Hour"
-        width={80}
+        width={100}
         allowSorting={true}
+        fixed={true}
       />
       <Column 
-        dataField="day0" 
-        caption="DAY-0"
+        dataField="applications_created" 
+        caption="Created"
         dataType="number"
         format="#,##0"
         allowSorting={true}
       />
       <Column 
-        dataField="day1" 
-        caption="DAY-1"
+        dataField="applications_submitted" 
+        caption="Submitted"
         dataType="number"
         format="#,##0"
         allowSorting={true}
       />
       <Column 
-        dataField="day7" 
-        caption="DAY-7"
+        dataField="applications_pending" 
+        caption="Pending"
         dataType="number"
         format="#,##0"
         allowSorting={true}
       />
       <Column 
-        dataField="deltaDay1Display" 
-        caption="%Δ vs DAY-1"
+        dataField="applications_approved" 
+        caption="Approved"
+        dataType="number"
+        format="#,##0"
         allowSorting={true}
       />
       <Column 
-        dataField="deltaDay7Display" 
-        caption="%Δ vs DAY-7"
+        dataField="applications_nached" 
+        caption="NACHed"
+        dataType="number"
+        format="#,##0"
+        allowSorting={true}
+      />
+      <Column 
+        dataField="autopay_done_applications" 
+        caption="Autopay Done"
+        dataType="number"
+        format="#,##0"
         allowSorting={true}
       />
     </DataGrid>

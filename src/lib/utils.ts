@@ -4,7 +4,8 @@ import {
   HourlyAnomaly,
   DailyMetricData,
   DailyAnomaly,
-  HourlyMetricField
+  HourlyMetricField,
+  HourlyAllMetricsData
 } from './types'
 
 /**
@@ -73,7 +74,137 @@ export function constructISTDateTime(dt: string, hour: string): Date {
 }
 
 /**
- * Compute hourly anomalies by joining DAY-0/DAY-1/DAY-7 by hour
+ * Compute hourly data for a single date (no comparison)
+ */
+export function computeSingleDateHourlyMetrics(
+  metrics: AppHourlyMetric[],
+  selectedMetric: HourlyMetricField
+): { data: HourlyMetricData[]; anomalies: HourlyAnomaly[] } {
+  const dataByHour: Map<number, number> = new Map()
+  
+  // Initialize all hours 0-23
+  for (let h = 0; h < 24; h++) {
+    dataByHour.set(h, 0)
+  }
+  
+  // Group by hour
+  metrics.forEach(metric => {
+    const hour = parseInt(metric.hour, 10)
+    if (isNaN(hour) || hour < 0 || hour > 23) return
+    
+    const value = parseMetric(metric[selectedMetric])
+    dataByHour.set(hour, value)
+  })
+  
+  // Compute data and detect anomalies (compare with previous hour)
+  const data: HourlyMetricData[] = []
+  const anomalies: HourlyAnomaly[] = []
+  let prevValue: number | null = null
+  
+  dataByHour.forEach((value, hour) => {
+    const delta = prevValue !== null && prevValue !== 0 
+      ? ((value - prevValue) / prevValue) * 100 
+      : null
+    
+    // Anomaly: significant drop (>30%) compared to previous hour
+    const isAnomaly = delta !== null && delta < -30
+    
+    data.push({
+      hour,
+      day0: value,
+      day1: 0, // Not used for single date
+      day7: 0, // Not used for single date
+      deltaDay1: null,
+      deltaDay7: delta,
+      isAnomaly
+    })
+    
+    if (isAnomaly && metrics.length > 0) {
+      const metric = metrics.find(m => parseInt(m.hour, 10) === hour)
+      if (metric) {
+        anomalies.push({
+          hour,
+          metric: selectedMetric,
+          day0Value: value,
+          day1Value: prevValue || 0,
+          day7Value: 0,
+          deltaDay1: null,
+          deltaDay7: delta,
+          timestamp: constructISTDateTime(metric.dt, metric.hour)
+        })
+      }
+    }
+    
+    prevValue = value
+  })
+  
+  // Sort by hour
+  data.sort((a, b) => a.hour - b.hour)
+  anomalies.sort((a, b) => a.hour - b.hour)
+  
+  return { data, anomalies }
+}
+
+/**
+ * Compute all hourly metrics for a single date
+ */
+export function computeAllHourlyMetrics(
+  metrics: AppHourlyMetric[]
+): HourlyAllMetricsData[] {
+  const dataByHour: Map<number, HourlyAllMetricsData> = new Map()
+  
+  // Initialize all hours 0-23
+  for (let h = 0; h < 24; h++) {
+    dataByHour.set(h, {
+      hour: h,
+      applications_created: 0,
+      applications_submitted: 0,
+      applications_pending: 0,
+      applications_approved: 0,
+      applications_nached: 0,
+      autopay_done_applications: 0,
+      isAnomaly: false
+    })
+  }
+  
+  // Group by hour and aggregate all metrics
+  metrics.forEach(metric => {
+    const hour = parseInt(metric.hour, 10)
+    if (isNaN(hour) || hour < 0 || hour > 23) return
+    
+    const hourData = dataByHour.get(hour)!
+    hourData.applications_created = parseMetric(metric.applications_created)
+    hourData.applications_submitted = parseMetric(metric.applications_submitted)
+    hourData.applications_pending = parseMetric(metric.applications_pending)
+    hourData.applications_approved = parseMetric(metric.applications_approved)
+    hourData.applications_nached = parseMetric(metric.applications_nached)
+    hourData.autopay_done_applications = parseMetric(metric.autopay_done_applications)
+  })
+  
+  // Detect anomalies (significant drop in created compared to previous hour)
+  const data: HourlyAllMetricsData[] = []
+  let prevCreated: number | null = null
+  
+  dataByHour.forEach((hourData, hour) => {
+    const delta = prevCreated !== null && prevCreated !== 0 
+      ? ((hourData.applications_created - prevCreated) / prevCreated) * 100 
+      : null
+    
+    // Anomaly: significant drop (>30%) in created compared to previous hour
+    hourData.isAnomaly = delta !== null && delta < -30
+    
+    data.push(hourData)
+    prevCreated = hourData.applications_created
+  })
+  
+  // Sort by hour (ascending)
+  data.sort((a, b) => a.hour - b.hour)
+  
+  return data
+}
+
+/**
+ * Compute hourly anomalies by joining DAY-0/DAY-1/DAY-7 by hour (legacy - not used anymore)
  */
 export function computeHourlyAnomalies(
   metrics: AppHourlyMetric[],

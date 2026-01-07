@@ -84,10 +84,20 @@ body {
   padding: 12px 8px !important;
 }
 
-/* Ensure cell content (badges) are not overridden by DevExpress */
-.dx-datagrid .dx-datagrid-rowsview .dx-datagrid-table .dx-row > td > span {
-  display: inline-block !important;
-  background-color: inherit !important;
+/* Ensure cell content (badges) can use inline styles - don't override them */
+.dx-datagrid .dx-datagrid-rowsview .dx-datagrid-table .dx-row > td {
+  vertical-align: middle !important;
+}
+
+/* Ensure badges (divs with inline styles) preserve their colors */
+.dx-datagrid .dx-datagrid-rowsview .dx-datagrid-table .dx-row > td > div {
+  margin: 0 !important;
+  line-height: 1.5 !important;
+}
+
+/* Prevent DevExpress from overriding badge background and text colors */
+.dx-datagrid .dx-datagrid-rowsview .dx-datagrid-table .dx-row > td {
+  background-color: transparent !important;
   color: inherit !important;
 }
 

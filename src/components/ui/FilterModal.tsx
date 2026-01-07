@@ -80,7 +80,7 @@ export function FilterModal({
         <div className="p-6">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             <DatePicker
-              label="DAY-0 Date"
+              label="Date (Applications Metrics)"
               value={selectedDate}
               onChange={(e) => onDateChange(e.target.value)}
             />
@@ -92,7 +92,10 @@ export function FilterModal({
               options={[
                 { value: 'applications_created', label: 'Applications Created' },
                 { value: 'applications_submitted', label: 'Applications Submitted' },
-                { value: 'applications_approved', label: 'Applications Approved' }
+                { value: 'applications_approved', label: 'Applications Approved' },
+                { value: 'applications_pending', label: 'Applications Pending' },
+                { value: 'applications_nached', label: 'Applications NACHed' },
+                { value: 'autopay_done_applications', label: 'Autopay Done Applications' }
               ]}
             />
 
@@ -153,5 +156,6 @@ export function FilterModal({
     </div>
   )
 }
+
 
 
