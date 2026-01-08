@@ -135,6 +135,7 @@ export const supabaseApi = {
 
   /**
    * Fetch alerts with optional time window
+   * All times are handled in IST (Asia/Kolkata) timezone consistently
    */
   async fetchAlerts(
     timeWindow?: { start: Date; end: Date }
@@ -145,15 +146,103 @@ export const supabaseApi = {
     }
 
     if (timeWindow?.start && timeWindow?.end) {
-      // Convert IST dates to UTC for query
-      const startUTC = new Date(timeWindow.start.getTime() - (5.5 * 60 * 60 * 1000))
-      const endUTC = new Date(timeWindow.end.getTime() - (5.5 * 60 * 60 * 1000))
+      // timeWindow dates are in IST (created with +05:30)
+      // Convert to UTC for database query (database stores in UTC)
+      const startUTC = timeWindow.start.toISOString()
+      const endUTC = timeWindow.end.toISOString()
       
-      params.gte = { triggered_at: startUTC.toISOString() }
-      params.lte = { triggered_at: endUTC.toISOString() }
+      console.log('Initial query window (UTC):', startUTC, 'to', endUTC)
+      console.log('Which is IST:', new Date(startUTC).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }), 'to', new Date(endUTC).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }))
+      
+      params.gte = { triggered_at: startUTC }
+      params.lte = { triggered_at: endUTC }
     }
 
-    return fetchFromSupabase('bharatpe_alerts_events', params)
+    let alerts = await fetchFromSupabase('bharatpe_alerts_events', params)
+    console.log('Initial query found', alerts.length, 'alerts')
+    
+    // If no alerts found and this is an hourly query, try querying the entire day
+    // Then filter alerts by converting everything to IST and comparing
+    if (alerts.length === 0 && timeWindow?.start && timeWindow?.end) {
+      const windowDuration = timeWindow.end.getTime() - timeWindow.start.getTime()
+      // If window is small (hourly ±30min), try querying the entire day
+      if (windowDuration < 2 * 60 * 60 * 1000) {
+        console.log('No alerts in initial window, trying full day query...')
+        const dateStr = timeWindow.start.toISOString().split('T')[0]
+        const dayStart = new Date(dateStr + 'T00:00:00Z')
+        const dayEnd = new Date(dateStr + 'T23:59:59Z')
+        
+        console.log('Querying full day:', dayStart.toISOString(), 'to', dayEnd.toISOString())
+        
+        const dayParams: QueryParams = {
+          select: '*',
+          gte: { triggered_at: dayStart.toISOString() },
+          lte: { triggered_at: dayEnd.toISOString() },
+          order: { column: 'triggered_at', ascending: false }
+        }
+        
+        const dayAlerts = await fetchFromSupabase('bharatpe_alerts_events', dayParams)
+        console.log('Full day query found', dayAlerts.length, 'alerts')
+        
+        // Get anomaly hour in IST
+        // timeWindow.start represents IST time (12:00 IST = 06:30 UTC)
+        // To get IST hour, we need to extract it from the original IST time
+        // Since timeWindow.start was created with +05:30, we can get IST hour by:
+        // Adding 5.5 hours to the UTC representation to get proper IST
+        const anomalyIST = new Date(timeWindow.start.getTime() + 5.5 * 60 * 60 * 1000)
+        const anomalyHourIST = anomalyIST.getUTCHours()
+        const anomalyMinuteIST = anomalyIST.getUTCMinutes()
+        
+        console.log('Filtering alerts by IST hour. Anomaly:', anomalyHourIST + ':' + String(anomalyMinuteIST).padStart(2, '0'), 'IST')
+        
+        // Filter alerts: handle two cases
+        // Case 1: Alert stored correctly in UTC (convert to IST and compare)
+        // Case 2: Alert stored as IST time without timezone (UTC hour = IST hour)
+        const filteredAlerts = (dayAlerts as any[]).filter((alert: any) => {
+          const alertUTC = new Date(alert.triggered_at)
+          const alertHourUTC = alertUTC.getUTCHours()
+          const alertMinuteUTC = alertUTC.getUTCMinutes()
+          
+          // Convert alert UTC to IST
+          const alertIST = new Date(alertUTC.getTime() + 5.5 * 60 * 60 * 1000)
+          const alertHourIST = alertIST.getUTCHours()
+          const alertMinuteIST = alertIST.getUTCMinutes()
+          
+          // Strategy 1: Alert UTC hour matches anomaly IST hour (alert stored as IST without timezone)
+          // Example: Alert 12:11 UTC should match anomaly 12:00 IST
+          const hourDiffUTC = Math.abs(alertHourUTC - anomalyHourIST)
+          const minuteDiffUTC = Math.abs(alertMinuteUTC - anomalyMinuteIST)
+          const matchesAsIST = (hourDiffUTC === 0 && minuteDiffUTC <= 30) || (hourDiffUTC === 1 && alertMinuteUTC <= 30 && anomalyMinuteIST >= 30)
+          
+          // Strategy 2: Alert IST hour matches anomaly IST hour (normal case)
+          const hourDiffIST = Math.abs(alertHourIST - anomalyHourIST)
+          const minuteDiffIST = Math.abs(alertMinuteIST - anomalyMinuteIST)
+          const timeDiffMinutesIST = hourDiffIST * 60 + minuteDiffIST
+          const matchesInIST = timeDiffMinutesIST <= 30 || (1440 - timeDiffMinutesIST) <= 30
+          
+          const matches = matchesAsIST || matchesInIST
+          
+          if (matches) {
+            console.log('Alert matches:', {
+              alertUTC: alertUTC.toISOString(),
+              alertHourUTC: alertHourUTC + ':' + String(alertMinuteUTC).padStart(2, '0'),
+              alertHourIST: alertHourIST + ':' + String(alertMinuteIST).padStart(2, '0'),
+              matchesAsIST,
+              matchesInIST
+            })
+          }
+          
+          return matches
+        })
+        
+        console.log('After IST filtering, found', filteredAlerts.length, 'matching alerts')
+        if (filteredAlerts.length > 0) {
+          return filteredAlerts
+        }
+      }
+    }
+    
+    return alerts
   },
 
   /**

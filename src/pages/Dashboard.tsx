@@ -18,6 +18,7 @@ import { EmptyState } from '../components/ui/EmptyState'
 import { ErrorDisplay } from '../components/ui/ErrorDisplay'
 import { AlertCorrelationPanel } from '../components/ui/AlertCorrelationPanel'
 import { Accordion } from '../components/ui/Accordion'
+import { AnomalyAnalysisModal } from '../components/ui/AnomalyAnalysisModal'
 import { HourlyMetricField } from '../lib/types'
 import { supabaseApi } from '../lib/supabaseApi'
 import { formatPercent } from '../lib/utils'
@@ -31,6 +32,18 @@ export function Dashboard() {
   const [selectedAnomalyHour, setSelectedAnomalyHour] = useState<number | null>(null)
   const [selectedAnomalyTimestamp, setSelectedAnomalyTimestamp] = useState<Date | null>(null)
   const [selectedDailyAnomalyDate, setSelectedDailyAnomalyDate] = useState<string | null>(null)
+  
+  // Anomaly analysis modal state
+  const [isAnomalyModalOpen, setIsAnomalyModalOpen] = useState(false)
+  const [anomalyModalData, setAnomalyModalData] = useState<{
+    type: 'hourly' | 'daily'
+    time: string
+    timestamp: Date
+    metric: string
+    value: number
+    previousValue?: number
+    delta?: number | null
+  } | null>(null)
   
   // Alert filters
   const [alertSources, setAlertSources] = useState<string[]>([])
@@ -125,6 +138,9 @@ export function Dashboard() {
     // Create timestamp for the selected hour on the selected date
     const anomalyDate = new Date(selectedDate + `T${hour.toString().padStart(2, '0')}:00:00+05:30`)
     setSelectedAnomalyTimestamp(anomalyDate)
+    // For hourly anomalies, use ±30 minutes window
+    setWindowBefore(30)
+    setWindowAfter(30)
   }
 
   const selectedAnomalyData = useMemo(() => {
@@ -332,6 +348,23 @@ export function Dashboard() {
                               setSelectedAnomalyTimestamp(anomalyDate)
                               setSelectedAnomalyHour(null)
                             }}
+                            onAnomalyIconClick={(date, e) => {
+                              e.stopPropagation()
+                              const anomaly = dailyData.find(d => d.dt === date)
+                              if (anomaly) {
+                                const anomalyDate = new Date(date + 'T12:00:00+05:30')
+                                setAnomalyModalData({
+                                  type: 'daily',
+                                  time: new Date(date).toLocaleDateString('en-IN'),
+                                  timestamp: anomalyDate,
+                                  metric: 'disbursed',
+                                  value: anomaly.disbursed,
+                                  previousValue: anomaly.prevDisbursed || undefined,
+                                  delta: anomaly.deltaDisbursed
+                                })
+                                setIsAnomalyModalOpen(true)
+                              }
+                            }}
                           />
                         </Accordion>
                       </div>
@@ -409,6 +442,23 @@ export function Dashboard() {
                             data={hourlyData} 
                             selectedMetrics={selectedHourlyMetrics}
                             onAnomalyClick={handleAnomalyHourClick}
+                            onAnomalyIconClick={(hour, e) => {
+                              e.stopPropagation()
+                              const hourlyItem = hourlyData.find(d => d.hour === hour)
+                              if (hourlyItem) {
+                                const anomalyDate = new Date(selectedDate + `T${hour.toString().padStart(2, '0')}:00:00+05:30`)
+                                setAnomalyModalData({
+                                  type: 'hourly',
+                                  time: `${hour}:00`,
+                                  timestamp: anomalyDate,
+                                  metric: 'applications_created',
+                                  value: hourlyItem.applications_created,
+                                  previousValue: hourlyData.find(d => d.hour === hour - 1)?.applications_created,
+                                  delta: null
+                                })
+                                setIsAnomalyModalOpen(true)
+                              }
+                            }}
                           />
                         </Accordion>
                       </div>
@@ -463,6 +513,24 @@ export function Dashboard() {
           ]}
         />
       </MetricCard>
+
+      {/* Anomaly Analysis Modal */}
+      {anomalyModalData && (
+        <AnomalyAnalysisModal
+          isOpen={isAnomalyModalOpen}
+          onClose={() => {
+            setIsAnomalyModalOpen(false)
+            setAnomalyModalData(null)
+          }}
+          anomalyType={anomalyModalData.type}
+          anomalyTime={anomalyModalData.time}
+          metric={anomalyModalData.metric}
+          metricValue={anomalyModalData.value}
+          previousValue={anomalyModalData.previousValue}
+          delta={anomalyModalData.delta}
+          anomalyTimestamp={anomalyModalData.timestamp}
+        />
+      )}
     </div>
   )
 }

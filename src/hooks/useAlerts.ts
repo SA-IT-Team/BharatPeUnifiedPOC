@@ -153,9 +153,33 @@ export function useCorrelatedAlerts(
 
   useEffect(() => {
     if (anomalyTimestamp) {
-      // Search for alerts nearby the anomaly time (±30 minutes by default)
-      const start = new Date(anomalyTimestamp.getTime() - windowBeforeMinutes * 60 * 1000)
-      const end = new Date(anomalyTimestamp.getTime() + windowAfterMinutes * 60 * 1000)
+      // For daily anomalies, use full day; for hourly, use time window
+      // Check if this is a daily anomaly by checking if timestamp is at noon (12:00:00)
+      // Daily anomalies are set to 12:00:00, so check if hour is 12 and minutes is 0
+      const hour = anomalyTimestamp.getHours()
+      const minutes = anomalyTimestamp.getMinutes()
+      const seconds = anomalyTimestamp.getSeconds()
+      const isDailyAnomaly = hour === 12 && minutes === 0 && seconds === 0
+      
+      let start: Date
+      let end: Date
+      
+      if (isDailyAnomaly) {
+        // For daily anomalies, search the entire day (00:00:00 to 23:59:59 IST)
+        // Extract date in YYYY-MM-DD format
+        const year = anomalyTimestamp.getFullYear()
+        const month = String(anomalyTimestamp.getMonth() + 1).padStart(2, '0')
+        const day = String(anomalyTimestamp.getDate()).padStart(2, '0')
+        const dateStr = `${year}-${month}-${day}`
+        
+        start = new Date(dateStr + 'T00:00:00+05:30')
+        end = new Date(dateStr + 'T23:59:59+05:30')
+      } else {
+        // For hourly anomalies, use time window
+        start = new Date(anomalyTimestamp.getTime() - windowBeforeMinutes * 60 * 1000)
+        end = new Date(anomalyTimestamp.getTime() + windowAfterMinutes * 60 * 1000)
+      }
+      
       setTimeWindow({ start, end })
     } else {
       setTimeWindow(undefined)

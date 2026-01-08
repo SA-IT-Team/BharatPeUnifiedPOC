@@ -82,3 +82,5 @@ export function forecastNext7Days(
   return forecast
 }
 
+
+

@@ -5,6 +5,7 @@ interface HourlyAllMetricsChartProps {
   data: HourlyAllMetricsData[]
   selectedMetrics: string[]
   onAnomalyClick?: (hour: number) => void
+  onAnomalyIconClick?: (hour: number, event: React.MouseEvent) => void
 }
 
 const metricColors: Record<string, string> = {
@@ -28,7 +29,8 @@ const metricLabels: Record<string, string> = {
 export function HourlyAllMetricsChart({ 
   data, 
   selectedMetrics,
-  onAnomalyClick 
+  onAnomalyClick,
+  onAnomalyIconClick
 }: HourlyAllMetricsChartProps) {
   const chartData = data.map(item => {
     const chartItem: any = {
@@ -51,6 +53,28 @@ export function HourlyAllMetricsChart({
         <g>
           <circle cx={cx} cy={cy} r={8} fill="#FA6C61" stroke="#DC2626" strokeWidth={2} />
           <circle cx={cx} cy={cy} r={4} fill="#FFFFFF" />
+          {onAnomalyIconClick && (
+            <g
+              onClick={(e) => {
+                e.stopPropagation()
+                onAnomalyIconClick(payload.hour, e as any)
+              }}
+              style={{ cursor: 'pointer' }}
+            >
+              <circle cx={cx} cy={cy - 20} r={10} fill="#FF6B6B" stroke="#DC2626" strokeWidth={2} opacity={0.9} />
+              <text
+                x={cx}
+                y={cy - 20}
+                textAnchor="middle"
+                dominantBaseline="middle"
+                fill="white"
+                fontSize="10"
+                fontWeight="bold"
+              >
+                ⚠
+              </text>
+            </g>
+          )}
         </g>
       )
     }
@@ -117,4 +141,6 @@ export function HourlyAllMetricsChart({
     </ResponsiveContainer>
   )
 }
+
+
 
