@@ -25,7 +25,7 @@ export function DailyMetricsDataGrid({ data, onRowClick }: DailyMetricsDataGridP
       return dateB - dateA // Descending order
     })
     
-    return sortedData.map((item, index) => {
+    return sortedData.map((item) => {
       // For delta calculation, we need the previous item in chronological order (not sorted order)
       // Find the previous chronological item
       const sortedChronological = [...data].sort((a, b) => {
@@ -77,16 +77,6 @@ export function DailyMetricsDataGrid({ data, onRowClick }: DailyMetricsDataGridP
     }
   }
 
-  const customizeCell = (cellInfo: any) => {
-    if (cellInfo.data.isAnomaly) {
-      return {
-        backgroundColor: '#FEF2F2',
-        borderLeft: '4px solid #FA6C61'
-      }
-    }
-    return {}
-  }
-
   if (!data || data.length === 0) {
     return (
       <div className="text-center py-8 text-gray-500">
@@ -103,7 +93,6 @@ export function DailyMetricsDataGrid({ data, onRowClick }: DailyMetricsDataGridP
         rowAlternationEnabled={true}
         columnAutoWidth={false}
         wordWrapEnabled={true}
-        customizeCell={customizeCell}
         onRowClick={onRowClickHandler}
         height={600}
         allowColumnResizing={true}

@@ -1,5 +1,4 @@
-import React from 'react'
-import { AlertCircle, Database, Search, Calendar } from 'lucide-react'
+import { AlertCircle, Database, Search } from 'lucide-react'
 
 interface EmptyStateProps {
   type: 'no-data' | 'no-alerts' | 'no-anomalies' | 'no-results'
@@ -77,6 +76,7 @@ export function EmptyState({ type, title, message, action }: EmptyStateProps) {
     </div>
   )
 }
+
 
 
 

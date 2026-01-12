@@ -185,7 +185,7 @@ export function computeAllHourlyMetrics(
   const data: HourlyAllMetricsData[] = []
   let prevCreated: number | null = null
   
-  dataByHour.forEach((hourData, hour) => {
+  dataByHour.forEach((hourData) => {
     const delta = prevCreated !== null && prevCreated !== 0 
       ? ((hourData.applications_created - prevCreated) / prevCreated) * 100 
       : null

@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react'
+import { useMemo } from 'react'
 import DataGrid, { Column, Paging, FilterRow, HeaderFilter, SearchPanel, Sorting } from 'devextreme-react/data-grid'
 import { HourlyAllMetricsData } from '../../lib/types'
 
@@ -29,16 +29,6 @@ export function HourlyMetricsDataGrid({ data, onRowClick }: HourlyMetricsDataGri
     }
   }
 
-  const customizeCell = (cellInfo: any) => {
-    if (cellInfo.data.isAnomaly) {
-      return {
-        backgroundColor: '#FEF2F2',
-        borderLeft: '4px solid #FA6C61'
-      }
-    }
-    return {}
-  }
-
   if (!data || data.length === 0) {
     return (
       <div className="text-center py-8 text-gray-500">
@@ -56,7 +46,6 @@ export function HourlyMetricsDataGrid({ data, onRowClick }: HourlyMetricsDataGri
         onRowClick={onRowClickHandler}
         columnAutoWidth={false}
         wordWrapEnabled={true}
-        customizeCell={customizeCell}
         allowColumnResizing={true}
         columnResizingMode="widget"
         headerFilter={{ allowSearch: true }}

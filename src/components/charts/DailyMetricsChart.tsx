@@ -1,7 +1,6 @@
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 import { DailyMetricData } from '../../lib/types'
 import { forecastNext7Days } from '../../lib/forecast'
-import { AlertTriangle } from 'lucide-react'
 
 interface DailyMetricsChartProps {
   data: DailyMetricData[]

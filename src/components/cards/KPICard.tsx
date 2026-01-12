@@ -13,7 +13,6 @@ export function KPICard({
   title, 
   value, 
   subtitle, 
-  trend, 
   icon,
   color = 'blue'
 }: KPICardProps) {
@@ -50,6 +49,7 @@ export function KPICard({
     </div>
   )
 }
+
 
 
 

@@ -1,4 +1,3 @@
-import React from 'react'
 import { AlertCircle, RefreshCw } from 'lucide-react'
 
 interface ErrorDisplayProps {
@@ -33,6 +32,7 @@ export function ErrorDisplay({ error, onRetry, title }: ErrorDisplayProps) {
     </div>
   )
 }
+
 
 
 

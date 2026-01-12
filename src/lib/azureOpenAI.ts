@@ -114,7 +114,7 @@ Format your response as JSON:
           { role: 'user', content: userPrompt }
         ],
         temperature: 1,
-        max_completion_tokens: 2000
+        max_completion_tokens: 10000
       })
     })
 

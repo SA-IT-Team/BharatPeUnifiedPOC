@@ -1,4 +1,3 @@
-import React from 'react'
 
 interface LoadingSkeletonProps {
   type?: 'card' | 'chart' | 'table' | 'kpi'
@@ -49,6 +48,7 @@ export function LoadingSkeleton({ type = 'card', count = 1 }: LoadingSkeletonPro
     </div>
   )
 }
+
 
 
 

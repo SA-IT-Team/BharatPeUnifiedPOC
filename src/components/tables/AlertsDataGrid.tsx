@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react'
+import React, { useMemo, useState } from 'react'
 import DataGrid, { 
   Column, 
   Paging, 
@@ -11,6 +11,8 @@ import DataGrid, {
 } from 'devextreme-react/data-grid'
 import { CorrelatedAlert } from '../../lib/types'
 import { formatIST, toIST } from '../../lib/utils'
+import { ActionsPopup } from '../ui/ActionsPopup'
+import { Notification } from '../ui/Notification'
 
 interface AlertsDataGridProps {
   alerts: CorrelatedAlert[]
@@ -120,6 +122,10 @@ const DetailTemplate = ({ data }: { data: CorrelatedAlert }) => {
 }
 
 export function AlertsDataGrid({ alerts, loading }: AlertsDataGridProps) {
+  const [popupOpen, setPopupOpen] = useState(false)
+  const [popupPosition, setPopupPosition] = useState({ top: 0, left: 0 })
+  const [notification, setNotification] = useState({ isVisible: false, message: '' })
+
   const gridData = useMemo(() => {
     return alerts.map(alert => {
       const istDate = toIST(alert.triggered_at)
@@ -130,9 +136,39 @@ export function AlertsDataGrid({ alerts, loading }: AlertsDataGridProps) {
     })
   }, [alerts])
 
-  const customizeCell = (cellInfo: any) => {
-    // Only apply row-level styling, badges are handled by cellRender
-    return {}
+  const handleActionsClick = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    const rect = e.currentTarget.getBoundingClientRect()
+    const popupWidth = 200
+    const popupHeight = 140
+    let left = rect.left
+    let top = rect.bottom + 5
+
+    if (left + popupWidth > window.innerWidth) {
+      left = window.innerWidth - popupWidth - 10
+    }
+    if (top + popupHeight > window.innerHeight) {
+      top = rect.top - popupHeight - 5
+    }
+
+    setPopupPosition({ top, left })
+    setPopupOpen(true)
+  }
+
+  const showNotification = (message: string) => {
+    setNotification({ isVisible: true, message })
+  }
+
+  const handleNotifySupport = () => {
+    showNotification('Support team notified successfully')
+  }
+
+  const handleAlertServices = () => {
+    showNotification('Services team alerted successfully')
+  }
+
+  const handleFixService = () => {
+    showNotification('Service fix initiated successfully')
   }
 
   if (loading) {
@@ -160,7 +196,6 @@ export function AlertsDataGrid({ alerts, loading }: AlertsDataGridProps) {
         rowAlternationEnabled={true}
         columnAutoWidth={false}
         wordWrapEnabled={true}
-        customizeCell={customizeCell}
         height={600}
         allowColumnResizing={true}
         columnResizingMode="widget"
@@ -223,7 +258,7 @@ export function AlertsDataGrid({ alerts, loading }: AlertsDataGridProps) {
             if (!priority) return <span>N/A</span>
             
             const isP1 = priority.toLowerCase() === 'p1'
-            const style = {
+            const style: React.CSSProperties = {
               backgroundColor: isP1 ? '#FEF2F2' : '#FEFCE8',
               color: isP1 ? '#FA6C61' : '#CA8A04',
               padding: '4px 8px',
@@ -232,7 +267,7 @@ export function AlertsDataGrid({ alerts, loading }: AlertsDataGridProps) {
               fontWeight: '600',
               display: 'inline-block',
               minWidth: '32px',
-              textAlign: 'center',
+              textAlign: 'center' as const,
               border: 'none',
               outline: 'none'
             }
@@ -278,7 +313,7 @@ export function AlertsDataGrid({ alerts, loading }: AlertsDataGridProps) {
               if (statusCode >= 400) return { backgroundColor: '#FEFCE8', color: '#CA8A04' }
               return { backgroundColor: '#E6F7F6', color: '#007C77' }
             }
-            const style = {
+            const style: React.CSSProperties = {
               ...getStatusStyle(),
               padding: '4px 8px',
               borderRadius: '4px',
@@ -286,7 +321,7 @@ export function AlertsDataGrid({ alerts, loading }: AlertsDataGridProps) {
               fontWeight: '500',
               display: 'inline-block',
               minWidth: '40px',
-              textAlign: 'center',
+              textAlign: 'center' as const,
               border: 'none',
               outline: 'none'
             }
@@ -303,6 +338,21 @@ export function AlertsDataGrid({ alerts, loading }: AlertsDataGridProps) {
           width={120}
           allowSorting={true}
         />
+        <Column
+          caption="Actions"
+          width={100}
+          allowSorting={false}
+          cellRender={() => {
+            return (
+              <button
+                onClick={(e) => handleActionsClick(e)}
+                className="px-3 py-1 text-sm font-medium text-white bg-bharatpe-green hover:opacity-90 rounded transition-colors"
+              >
+                Actions
+              </button>
+            )
+          }}
+        />
         
         <MasterDetail
           enabled={true}
@@ -310,6 +360,19 @@ export function AlertsDataGrid({ alerts, loading }: AlertsDataGridProps) {
         />
       </DataGrid>
       </div>
+      <ActionsPopup
+        isOpen={popupOpen}
+        onClose={() => setPopupOpen(false)}
+        onNotifySupport={handleNotifySupport}
+        onAlertServices={handleAlertServices}
+        onFixService={handleFixService}
+        position={popupPosition}
+      />
+      <Notification
+        message={notification.message}
+        isVisible={notification.isVisible}
+        onClose={() => setNotification({ isVisible: false, message: '' })}
+      />
     </div>
   )
 }

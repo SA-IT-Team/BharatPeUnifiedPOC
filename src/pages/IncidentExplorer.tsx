@@ -6,7 +6,6 @@ import { IncidentCard } from '../components/cards/IncidentCard'
 import { Select } from '../components/ui/Select'
 import { DatePicker } from '../components/ui/DatePicker'
 import { Input } from '../components/ui/Input'
-import { HourlyMetricField } from '../lib/types'
 import { constructISTDateTime } from '../lib/utils'
 
 type Domain = 'applications' | 'collections'
@@ -37,9 +36,7 @@ export function IncidentExplorer() {
   }, [date])
 
   const { data: hourlyData } = useHourlyMetrics(
-    domain === 'applications' ? date : '',
-    metric as HourlyMetricField,
-    0.30
+    domain === 'applications' ? date : ''
   )
 
   const { data: dailyData } = useDailyMetrics(30)
@@ -69,13 +66,18 @@ export function IncidentExplorer() {
             return
           }
 
+          // Get the metric value from the hourData
+          const metricValue = hourData[metric as keyof typeof hourData] as number
+          if (typeof metricValue !== 'number') {
+            setError('Invalid metric selected')
+            setLoading(false)
+            return
+          }
+
           setIncidentData({
-            currentValue: hourData.day0,
-            baselines: {
-              day1: hourData.day1,
-              day7: hourData.day7
-            },
-            delta: hourData.deltaDay1 !== null ? hourData.deltaDay1 : hourData.deltaDay7,
+            currentValue: metricValue,
+            baselines: {},
+            delta: null,
             timeframe: `${date} at ${hour}:00 IST`
           })
         } else {

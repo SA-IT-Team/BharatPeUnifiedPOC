@@ -151,15 +151,11 @@ export const supabaseApi = {
       const startUTC = timeWindow.start.toISOString()
       const endUTC = timeWindow.end.toISOString()
       
-      console.log('Initial query window (UTC):', startUTC, 'to', endUTC)
-      console.log('Which is IST:', new Date(startUTC).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }), 'to', new Date(endUTC).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }))
-      
       params.gte = { triggered_at: startUTC }
       params.lte = { triggered_at: endUTC }
     }
 
     let alerts = await fetchFromSupabase('bharatpe_alerts_events', params)
-    console.log('Initial query found', alerts.length, 'alerts')
     
     // If no alerts found and this is an hourly query, try querying the entire day
     // Then filter alerts by converting everything to IST and comparing
@@ -167,12 +163,9 @@ export const supabaseApi = {
       const windowDuration = timeWindow.end.getTime() - timeWindow.start.getTime()
       // If window is small (hourly ±30min), try querying the entire day
       if (windowDuration < 2 * 60 * 60 * 1000) {
-        console.log('No alerts in initial window, trying full day query...')
         const dateStr = timeWindow.start.toISOString().split('T')[0]
         const dayStart = new Date(dateStr + 'T00:00:00Z')
         const dayEnd = new Date(dateStr + 'T23:59:59Z')
-        
-        console.log('Querying full day:', dayStart.toISOString(), 'to', dayEnd.toISOString())
         
         const dayParams: QueryParams = {
           select: '*',
@@ -182,7 +175,6 @@ export const supabaseApi = {
         }
         
         const dayAlerts = await fetchFromSupabase('bharatpe_alerts_events', dayParams)
-        console.log('Full day query found', dayAlerts.length, 'alerts')
         
         // Get anomaly hour in IST
         // timeWindow.start represents IST time (12:00 IST = 06:30 UTC)
@@ -192,8 +184,6 @@ export const supabaseApi = {
         const anomalyIST = new Date(timeWindow.start.getTime() + 5.5 * 60 * 60 * 1000)
         const anomalyHourIST = anomalyIST.getUTCHours()
         const anomalyMinuteIST = anomalyIST.getUTCMinutes()
-        
-        console.log('Filtering alerts by IST hour. Anomaly:', anomalyHourIST + ':' + String(anomalyMinuteIST).padStart(2, '0'), 'IST')
         
         // Filter alerts: handle two cases
         // Case 1: Alert stored correctly in UTC (convert to IST and compare)

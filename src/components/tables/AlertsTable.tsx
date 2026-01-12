@@ -42,14 +42,14 @@ export function AlertsTable({ alerts, loading, itemsPerPage = 5 }: AlertsTablePr
     )).sort()
 
     const uniqueValues = Array.from(new Set(
-      alerts.map(alert => alert.value).filter(Boolean)
+      alerts.map(alert => alert.value).filter((v): v is string => Boolean(v))
     )).sort()
 
     return {
       dates: uniqueDates.map(date => ({ value: date, label: date })),
       sources: uniqueSources.map(source => ({ value: source, label: source })),
       priorities: uniquePriorities.map(priority => ({ value: priority, label: priority.toUpperCase() })),
-      values: uniqueValues.map(value => ({ value: value, label: value }))
+      values: uniqueValues.map(value => ({ value, label: value }))
     }
   }, [alerts])
 

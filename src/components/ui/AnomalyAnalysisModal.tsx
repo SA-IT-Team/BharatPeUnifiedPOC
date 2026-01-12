@@ -61,20 +61,9 @@ export function AnomalyAnalysisModal({
           start = new Date(anomalyTimestamp.getTime() - 30 * 60 * 1000)
           end = new Date(anomalyTimestamp.getTime() + 30 * 60 * 1000)
           
-          console.log('Hourly anomaly at:', anomalyTimestamp.toISOString(), '(UTC)')
-          console.log('Searching window:', start.toISOString(), 'to', end.toISOString(), '(UTC)')
-          console.log('Which is IST:', start.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }), 'to', end.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }))
         }
         
         const fetchedAlerts = await supabaseApi.fetchAlerts({ start, end })
-        
-        console.log('Fetched alerts count:', fetchedAlerts.length)
-        if (fetchedAlerts.length > 0) {
-          console.log('Sample alert times:', fetchedAlerts.slice(0, 3).map((a: any) => ({
-            stored: a.triggered_at,
-            asIST: new Date(a.triggered_at).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })
-          })))
-        }
 
         // Fetch alert metric mappings
         const domain = anomalyType === 'hourly' ? 'applications' : 'collections'
@@ -126,7 +115,7 @@ export function AnomalyAnalysisModal({
             source: alert.source,
             priority: alert.priority || '',
             severity: alert.severity || '',
-            alert_name: alert.alert_name,
+            alert_name: alert.alert_name || '',
             message: alert.message || '',
             triggered_at: formatIST(toIST(alert.triggered_at)),
             host: alert.host || undefined,
