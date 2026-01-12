@@ -1,7 +1,8 @@
 import React, { useMemo, useState } from 'react'
 import DataGrid, { 
   Column, 
-  Paging, 
+  Paging,
+  Pager,
   FilterRow, 
   HeaderFilter, 
   SearchPanel,
@@ -201,7 +202,8 @@ export function AlertsDataGrid({ alerts, loading }: AlertsDataGridProps) {
         columnResizingMode="widget"
         headerFilter={{ allowSearch: true }}
       >
-        <Paging defaultPageSize={5} pageSizes={[5, 10, 20]} />
+        <Paging defaultPageSize={5} />
+        <Pager allowedPageSizes={[5, 10, 20]} showPageSizeSelector={true} />
         <FilterRow visible={false} />
         <HeaderFilter visible={true} allowSelectAll={true} />
         <SearchPanel visible={true} width={240} placeholder="Search..." />

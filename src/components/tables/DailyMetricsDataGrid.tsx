@@ -1,7 +1,8 @@
 import { useMemo } from 'react'
 import DataGrid, { 
   Column, 
-  Paging, 
+  Paging,
+  Pager,
   FilterRow, 
   HeaderFilter, 
   SearchPanel,
@@ -99,7 +100,8 @@ export function DailyMetricsDataGrid({ data, onRowClick }: DailyMetricsDataGridP
         columnResizingMode="widget"
         headerFilter={{ allowSearch: true }}
       >
-        <Paging defaultPageSize={10} pageSizes={[5, 10, 20, 30]} />
+        <Paging defaultPageSize={10} />
+        <Pager allowedPageSizes={[5, 10, 20, 30]} showPageSizeSelector={true} />
         <FilterRow visible={true} />
         <HeaderFilter visible={true} allowSelectAll={true} />
         <SearchPanel visible={true} width={240} placeholder="Search..." />

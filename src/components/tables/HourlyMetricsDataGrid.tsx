@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import DataGrid, { Column, Paging, FilterRow, HeaderFilter, SearchPanel, Sorting } from 'devextreme-react/data-grid'
+import DataGrid, { Column, Paging, Pager, FilterRow, HeaderFilter, SearchPanel, Sorting } from 'devextreme-react/data-grid'
 import { HourlyAllMetricsData } from '../../lib/types'
 
 interface HourlyMetricsDataGridProps {
@@ -50,7 +50,8 @@ export function HourlyMetricsDataGrid({ data, onRowClick }: HourlyMetricsDataGri
         columnResizingMode="widget"
         headerFilter={{ allowSearch: true }}
       >
-      <Paging defaultPageSize={10} pageSizes={[5, 10, 20, 30]} />
+      <Paging defaultPageSize={10} />
+      <Pager allowedPageSizes={[5, 10, 20, 30]} showPageSizeSelector={true} />
       <FilterRow visible={true} />
       <HeaderFilter visible={true} allowSelectAll={true} />
       <SearchPanel visible={true} width={240} placeholder="Search..." />
