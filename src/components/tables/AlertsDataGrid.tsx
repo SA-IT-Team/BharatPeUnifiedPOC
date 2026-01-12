@@ -201,7 +201,7 @@ export function AlertsDataGrid({ alerts, loading }: AlertsDataGridProps) {
         columnResizingMode="widget"
         headerFilter={{ allowSearch: true }}
       >
-        <Paging defaultPageSize={5} pageSizeSelector={[5, 10, 20]} />
+        <Paging defaultPageSize={5} pageSizes={[5, 10, 20]} />
         <FilterRow visible={false} />
         <HeaderFilter visible={true} allowSelectAll={true} />
         <SearchPanel visible={true} width={240} placeholder="Search..." />

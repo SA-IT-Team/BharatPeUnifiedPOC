@@ -50,7 +50,7 @@ export function HourlyMetricsDataGrid({ data, onRowClick }: HourlyMetricsDataGri
         columnResizingMode="widget"
         headerFilter={{ allowSearch: true }}
       >
-      <Paging defaultPageSize={10} pageSizeSelector={[5, 10, 20, 30]} />
+      <Paging defaultPageSize={10} pageSizes={[5, 10, 20, 30]} />
       <FilterRow visible={true} />
       <HeaderFilter visible={true} allowSelectAll={true} />
       <SearchPanel visible={true} width={240} placeholder="Search..." />
