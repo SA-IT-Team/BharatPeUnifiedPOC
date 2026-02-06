@@ -43,7 +43,7 @@ export function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
               }`}
             >
               <h1 className="text-xl font-bold whitespace-nowrap">
-                <span className="text-gray-900">Bharat</span>
+                <span className="text-gray-900">Smart</span>
                 <span className="text-bharatpe-blue">Pe</span>
               </h1>
               <p className="text-xs text-gray-500 whitespace-nowrap">Monitoring</p>

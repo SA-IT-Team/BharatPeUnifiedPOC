@@ -170,7 +170,7 @@ export function Dashboard() {
     <div className="max-w-7xl mx-auto">
       {/* Header */}
       <div className="mb-6">
-        <h1 className="text-3xl font-bold text-gray-900">BharatPe Loan Service Monitoring</h1>
+        <h1 className="text-3xl font-bold text-gray-900">Smart Loan Service Monitoring</h1>
         <p className="text-sm text-gray-600 mt-1">Applications & Collections Metrics Dashboard</p>
       </div>
 
